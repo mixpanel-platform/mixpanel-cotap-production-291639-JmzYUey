@@ -10,27 +10,28 @@
     <div class="mixpanel-platform-section">
       <div class="instructions">
         <h1 style="font-size: 18px; color: rgb(95,105,131)">Cotap Engagement</h1>
-        <p style="font-size: 13px; color: rgb(95,105,131)">Select events for which you would like to see the most engaged and least engaged users (or click "Any Event" to see overall activity).</p>
+        <p style="font-size: 13px; color: rgb(95,105,131)">Select the event for which you would like to see the most engaged and least engaged users (or click "Any Event" to see overall activity).</p>
       </div>
       <div id="dateSelect" style="float: right;"></div>
-      <button class="any-event" style="height: 32px; width: 100px; border: 1px solid rgb(95,105,131); color: rgb(95,105,131); border-radius: 2px; background-color: rgb(236,239,243); margin-bottom: 15px">Any Event</button>
+      <button class="any-event" style="height: 32px; width: 100px; border: 1px solid rgb(95,105,131); color: rgb(95,105,131); font-size: 13px; border-radius: 2px; background-color: rgb(236,239,243); margin-bottom: 15px">Any Event</button>
       <div class="event-selects">
         <div id="event1" style="margin-bottom: 15px"></div>
-        <div id="event2" style="margin-bottom: 15px; display: none"></div>
-        <div id="event3" style="margin-bottom: 15px; display: none"></div>
-        <div id="event4" style="display: none"></div>
       </div>
-      <div class="loading">
+      <div class="loading" style="display: none">
         <p style="font-size: 18px; color: rgb(95,105,131); text-align: center">Loading....</p>
       </div>
       <div style="clear: both;"></div>
-      <div id="graph"></div>
+      <h1 class="title" style="font-size: 18px; color: rgb(95,105,131); margin-bottom: 15px; display: none">Top Users</h1>
+      <div id="graph1"></div>
     </div>
-    <div id="table"></div>
+    <div id="table1" style="margin-bottom: 30px"></div>
+    <h1 class="title" style="font-size: 18px; color: rgb(95,105,131); margin: 0 0 15px 5px; display: none">Bottom Users</h1>
+    <div id="graph2" style="margin-bottom: 15px"></div>
+    <div id="table2"></div>
     <script>
-    
-      var domains = [];
+
       // run through email addresses of all People profiles to get a list of domains
+      var domains = [];
       MP.api.people().done(function(results) {
         var people = results.values().results;
         $.each(people, function(i, peopProf) {
@@ -43,128 +44,119 @@
         })
       });
     
-      // populate each dropdown with the project's events and add a date picker
+      // populate event and date dropdowns
       var event1 = $('#event1').MPEventSelect(),
-          event2 = $('#event2').MPEventSelect(),
-          event3 = $('#event3').MPEventSelect(),
-          event4 = $('#event4').MPEventSelect(),
           dateSelect  = $('#dateSelect').MPDatepicker(),
-          // set options for MP graph and MP table (to be populated later)
-          eventGraph  = $('#graph').MPChart({chartType: 'line', highchartsOptions: {
+      // set options for MP graphs and MP tables (to be populated later)
+          topGraph  = $('#graph1').MPChart({chartType: 'line', highchartsOptions: {
               tooltip: {
                   backgroundColor: '#fffce7'  // Make tooltip background yellow
               }
           }}),
-          eventTable = $('#table').MPTable({
+          topTable = $('#table1').MPTable({
+            showPercentages: true,
+            firstColHeader: 'Event'
+          });
+          bottomGraph  = $('#graph2').MPChart({chartType: 'line', highchartsOptions: {
+              tooltip: {
+                  backgroundColor: '#fffce7'  // Make tooltip background yellow
+              }
+          }}),
+          bottomTable = $('#table2').MPTable({
             showPercentages: true,
             firstColHeader: 'Event'
           });
 
+      //////////// add this ///////////////
+      /////////////////////////////////////
+      /////////////////////////////////////
       $('.any-event').click(function() {
         // add all events together
       });
 
-      // get all event dropdown inputs and run segmentation queries segmented by "$email contains [search term]"
+      // get event and date dropdown inputs and run segmentation queries for each domain, then order and display them
       function runQuery() {
-        var data = {},
-            eventNameCount = 0,
-            eventNames = [event1, event2, event3, event4],
+        var topData = {},
+            botData = {},
             domainObject = {};
         
-        $.each(domains, function(i, domain) {
-          domainObject[domain] = {};
-        })
-            
-        // count how many events have been selected
-        $.each(eventNames, function(i, event) {
-          eventThere = event.MPEventSelect('value');
-          if (eventThere) {
-            eventNameCount ++;
+        // obtain event name and date range values from dropdowns
+        var eventName = event1.MPEventSelect('value'),
+            dateRange = dateSelect.MPDatepicker('value'),
+            fromDate,
+            toDate;
+        // assign from_date and to_date from date picker
+        $.each(dateRange, function(param, value) {
+          if (param == "from") {
+            fromDate = value;
+          }
+          else if (param == "to") {
+            toDate = value;
           }
         });
         
-        // iterate through each event that has been selected and create segmentation graph and table
-        $.each(eventNames, function(i, event) {
-          // obtain event name and date range values from dropdowns
-          var eventName = event.MPEventSelect('value'),
-              dateRange = dateSelect.MPDatepicker('value'),
-              fromDate,
-              toDate;
-          // assign from_date and to_date from date picker
-          $.each(dateRange, function(param, value) {
-            if (param == "from") {
-              fromDate = value;
+        // set parameters and grab segmentation results for each domain
+        if (eventName) {
+          $.each(domains, function(i, domain) {
+            domainObject[domain] = {};
+            params = {
+              from: fromDate,
+              to: toDate,
+              "where": "(\"" + domain + "\" in properties[\"$email\"])", 
             }
-            else if (param == "to") {
-              toDate = value;
-            }
-          });
-          // set parameters and append segmentation results to data
-          if (eventName) {
-            $.each(domains, function(i, domain) {
-              // domainObject[domain] = {}
-              params = {
-                from: fromDate,
-                to: toDate,
-                "where": "(\"" + domain + "\" in properties[\"$email\"])", 
-              }
-              MP.api.segment(eventName, params).done(function(results) {
-                total = 0;
-                $.each(results.values(), function(i, dates) {
-                  $.each(dates, function(date, num) {
-                    total += num;
-                    domainObject[domain][date] = num;
-                  })
+            MP.api.segment(eventName, params).done(function(results) {
+              total = 0;
+              $.each(results.values(), function(i, dates) {
+                $.each(dates, function(date, num) {
+                  total += num;
+                  domainObject[domain][date] = num;
                 })
-                domainObject[domain]["total"] = total;
-                // only create graph and table if it is the last iteration of $.each
-                if ((eventNames.indexOf(event) + 1) == eventNameCount) {
-                  if (domain == domains[domains.length-1]) {
-                    $('.loading').hide();
-                    var sortable = [];
-                    for (var sortDomain in domainObject) {
-                      sortable.push([sortDomain, domainObject[sortDomain]["total"]]);
-                    }
-                    sortable.sort(function(a, b) {return b[1] - a[1]});
-                    var topDomains = sortable.slice(0, 10);
-                    var botDomains = sortable.slice(-10);
-                    for (var top in topDomains) {
-                      var topDomain = domainObject[topDomains[top][0]];
-                      var domainName = topDomains[top][0];
-                      delete topDomain["total"];
-                      data[domainName] = topDomain;
-                    }
-                    eventGraph.MPChart('setData', data);
-                    eventTable.MPTable('setData', data);
-                  }
+              })
+              domainObject[domain]["total"] = total;
+              // only order data and create graph and table if we've gone through all domains
+              if (domain == domains[domains.length-1]) {
+                $('.loading').hide();
+                
+                // sort activity from highest to lowest
+                var sortable = [];
+                for (var sortDomain in domainObject) {
+                  sortable.push([sortDomain, domainObject[sortDomain]["total"]]);
                 }
-              });
+                sortable.sort(function(a, b) {return b[1] - a[1]});
+                
+                // take top and bottom 10 results from sorted list
+                var topDomains = sortable.slice(0, 10);
+                var botDomains = sortable.slice(-10);
+                
+                // add data top top and bottom graphs/tables
+                for (var top in topDomains) {
+                  var topDomain = domainObject[topDomains[top][0]];
+                  var domainName = topDomains[top][0];
+                  delete topDomain["total"];
+                  topData[domainName] = topDomain;
+                }
+                for (var bot in botDomains) {
+                  var botDomain = domainObject[botDomains[bot][0]];
+                  var domainName = botDomains[bot][0];
+                  delete botDomain["total"];
+                  botData[domainName] = botDomain;
+                }
+                $('.title').show();
+                topGraph.MPChart('setData', topData);
+                topTable.MPTable('setData', topData);
+                bottomGraph.MPChart('setData', botData);
+                bottomTable.MPTable('setData', botData);
+              }
             });
-          }
-        });
+          });
+        }
       };
       
       // set functions to run when dropdowns change
       event1.on('change', function(e, eventName) {
         $('.loading').show();
         runQuery();
-        event2.show();
       });
-      event2.on('change', function(e, eventName) {
-        $('.loading').show();
-        runQuery();
-        event3.show();
-      });
-      event3.on('change', function(e, eventName) {
-        $('.loading').show();
-        runQuery();
-        event4.show().css("margin-bottom", "15px");
-      });
-      event4.on('change', function(e, eventName) {
-        $('.loading').show();
-        runQuery();
-      });
-      
       dateSelect.on('change', function() {
         $('.loading').show();
         runQuery();
