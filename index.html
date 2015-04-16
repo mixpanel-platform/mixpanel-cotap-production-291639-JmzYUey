@@ -67,11 +67,28 @@
             firstColHeader: 'Event'
           });
 
-      //////////// add this ///////////////
-      /////////////////////////////////////
-      /////////////////////////////////////
+////////////// still in progress /////////////
       $('.any-event').click(function() {
+        $('.loading').show();
+        var eventList = [];
         // add all events together
+        MP.api.query('/api/2.0/events/names', {type: 'general'}, {datatType: 'json'}).done(function(json) {
+          eventList = json;
+        })
+        $.each(eventList, function(i, eventOption) {
+          console.log('Querying...');
+          console.log(eventOption);
+          MP.api.query('/api/2.0/events/', {event: eventOption, "where": "(\"mixpanel.com\" in properties[\"$email\"])", unit: 'day'}, {dataType: 'json'}).
+            done(function(json) {
+              console.log('got json\n', json);
+              if (i == eventList.length-1) {
+                loading.hide();
+              }
+          })
+            .fail(function($xhr) {
+              console.log('error with request', $xhr);
+          });        
+        });
       });
 
       // get event and date dropdown inputs and run segmentation queries for each domain, then order and display them
