@@ -10,10 +10,9 @@
     <div class="mixpanel-platform-section">
       <div class="instructions">
         <h1 style="font-size: 18px; color: rgb(95,105,131)">Cotap Engagement</h1>
-        <p style="font-size: 13px; color: rgb(95,105,131)">Select the event for which you would like to see the most engaged and least engaged users (or click "Any Event" to see overall activity).</p>
+        <p style="font-size: 13px; color: rgb(95,105,131)">Select the event for which you would like to see the most engaged and least engaged users.</p>
       </div>
       <div id="dateSelect" style="float: right;"></div>
-      <button class="any-event" style="height: 32px; width: 100px; border: 1px solid rgb(95,105,131); color: rgb(95,105,131); font-size: 13px; border-radius: 2px; background-color: rgb(236,239,243); margin-bottom: 15px">Any Event</button>
       <div class="event-selects">
         <div id="event1" style="margin-bottom: 15px"></div>
       </div>
@@ -66,30 +65,6 @@
             showPercentages: true,
             firstColHeader: 'Event'
           });
-
-////////////// still in progress /////////////
-      $('.any-event').click(function() {
-        $('.loading').show();
-        var eventList = [];
-        // add all events together
-        MP.api.query('/api/2.0/events/names', {type: 'general'}, {datatType: 'json'}).done(function(json) {
-          eventList = json;
-        })
-        $.each(eventList, function(i, eventOption) {
-          console.log('Querying...');
-          console.log(eventOption);
-          MP.api.query('/api/2.0/events/', {event: eventOption, "where": "(\"mixpanel.com\" in properties[\"$email\"])", unit: 'day'}, {dataType: 'json'}).
-            done(function(json) {
-              console.log('got json\n', json);
-              if (i == eventList.length-1) {
-                loading.hide();
-              }
-          })
-            .fail(function($xhr) {
-              console.log('error with request', $xhr);
-          });        
-        });
-      });
 
       // get event and date dropdown inputs and run segmentation queries for each domain, then order and display them
       function runQuery() {
